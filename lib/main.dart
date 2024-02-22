@@ -1,28 +1,14 @@
 import 'dart:convert';
 
 import 'package:cats_app/cat.dart';
+import 'package:cats_app/cat_cubit.dart';
+import 'package:cats_app/cat_state.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:http/http.dart' as http;
 
 void main() {
-  runApp(MyApp());
-}
-
-Future<List<Cat>> fetchData() async {
-  final response = await http.get(
-      Uri.parse('https://api.api-ninjas.com/v1/cats?name=n'),
-      headers: {'X-Api-Key': '7pzGtf21ejiKm30iiH6o3A==An2PCjx7cdfX8hSQ'});
-
-  final responseList = jsonDecode(response.body) as List<dynamic>;
-  final listOfCats = responseList
-      .map(
-        (e) => Cat.fromJson(
-          e as Map<String, dynamic>,
-        ),
-      )
-      .toList();
-
-  return listOfCats;
+  runApp(BlocProvider(create: (_) => CatsCubit(), child: MyApp()));
 }
 
 class MyApp extends StatelessWidget {
@@ -33,41 +19,54 @@ class MyApp extends StatelessWidget {
         appBar: AppBar(
           title: Text('Cats'),
         ),
-        body: FutureBuilder(
-            future: fetchData(),
-            builder: (context, snapshot) {
-              if (snapshot.hasData) {
-                return SingleChildScrollView(
-                  child: Column(
-                    children: [
-                      ...snapshot.data!.map(
-                        (cat) => ListTile(
-                          onTap: () {
-                            Navigator.of(context).push(
-                              MaterialPageRoute(
-                                builder: (context) => CatDetails(
-                                  cat: cat,
-                                ),
-                              ),
-                            );
-                          },
-                          leading: Image.network(
-                            cat.imageLink,
-                            width: 65,
-                            height: 65,
-                            fit: BoxFit.fill,
-                          ),
-                          title: Text(cat.name),
-                          subtitle: Text(cat.origin),
-                        ),
-                      ),
-                    ],
+        body: Builder(builder: (context) {
+          final cubit = context.watch<CatsCubit>();
+          final state = cubit.state;
+
+          return switch (state) {
+            AsyncCatStateLoading() => const CircularProgressIndicator(),
+            AsyncCatStateLoaded() => CatsList(cats: state.data),
+            AsyncCatStateError() => Text(state.error.toString()),
+          };
+
+        }),
+      ),
+    );
+  }
+}
+
+class CatsList extends StatelessWidget {
+  final List<Cat> cats;
+
+  const CatsList({super.key, required this.cats});
+
+  @override
+  Widget build(BuildContext context) {
+    return SingleChildScrollView(
+      child: Column(
+        children: [
+          ...cats.map(
+            (cat) => ListTile(
+              onTap: () {
+                Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (context) => CatDetails(
+                      cat: cat,
+                    ),
                   ),
                 );
-              }
-
-              return const CircularProgressIndicator();
-            }),
+              },
+              leading: Image.network(
+                cat.imageLink,
+                width: 65,
+                height: 65,
+                fit: BoxFit.fill,
+              ),
+              title: Text(cat.name),
+              subtitle: Text(cat.origin),
+            ),
+          ),
+        ],
       ),
     );
   }

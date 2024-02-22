@@ -25,4 +25,6 @@ class Cat {
   });
 
   factory Cat.fromJson(Map<String, dynamic> json) => _$CatFromJson(json);
+
+
 }
